@@ -1,4 +1,4 @@
-#include "app.h"
+// #include "app.h"
 #include "hot_fix.h"
 #include <iostream>
 
@@ -6,8 +6,8 @@ using namespace std;
 
 // 定义要热更新的函数
 int fix_func() {
-  cout << "before fix_func addr : " << (void *)&need_fix_func << endl;
-  cout << "after  fix_func addr : " << (void *)&fix_func << endl;
+  // cout << "before fix_func addr : " << (void *)&need_fix_func << endl;
+  cout << "after fix_func addr : " << (void *)&fix_func << endl;
 
   cout << "load new fix function" << endl;
   // fix here
@@ -19,4 +19,7 @@ int fix_func() {
 }
 
 // 定义替换的函数和更新后的函数
-FIXTABLE fix_table = {(void *)&fix_func, (void *)&need_fix_func};
+FIXTABLE fix_table = { //
+    (void *)&fix_func,
+    // (void *)&need_fix_func
+    NULL};

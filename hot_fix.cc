@@ -24,6 +24,7 @@ static int fix_func(const void *new_func, void *old_func) {
       (char *)old_func - ((uint64_t)(char *)old_func % page_size);
   if (0 != mprotect(align_point, (char *)old_func - align_point + inst_len,
                     PROT_READ | PROT_WRITE | PROT_EXEC)) {
+    cout << "open PROT_WRITE error\n";
     return -1;
   }
 
@@ -36,6 +37,7 @@ static int fix_func(const void *new_func, void *old_func) {
   // 关闭代码可写权限
   if (0 != mprotect(align_point, (char *)old_func - align_point + inst_len,
                     PROT_READ | PROT_EXEC)) {
+    cout << "close PROT_WRITE error\n";
     return -1;
   }
   return 0;
@@ -46,7 +48,7 @@ static void do_fix(int signum) {
 
   // 1. 调用dlopen加载so库
   char patch_path[] = "./patch.so";
-  void *lib = dlopen(patch_path, RTLD_NOW | RTLD_GLOBAL);
+  void *lib = dlopen(patch_path, RTLD_NOW);
   if (NULL == lib) {
     cout << dlerror() << endl;
     cout << "dlopen failed , patch " << patch_path << endl;
@@ -55,8 +57,8 @@ static void do_fix(int signum) {
 
   // 2. 查找函数符号表并且替换
   FIXTABLE *fix_item = (FIXTABLE *)dlsym(lib, "fix_table");
-  // cout << (void *)fix_item->old_func
-  // << "   new_func=" << (void *)fix_item->new_func << endl;
+  cout //<< " old_func=" << fix_item->old_func
+      << " new_func=" << fix_item->new_func << endl;
   //   ((int(*)())fix_item->old_func)();
   //   ((int(*)())fix_item->new_func)();
   if (NULL == fix_item) {
@@ -65,12 +67,13 @@ static void do_fix(int signum) {
     return;
   }
 
-  void *result = dlopen(NULL, RTLD_NOW);
-  if (NULL == result) {
-    cout << "result is null" << endl;
-    dlclose(lib);
-    return;
-  }
+  // ?????
+  // void *result = dlopen(NULL, RTLD_NOW);
+  // if (NULL == result) {
+  //   cout << "result is null" << endl;
+  //   dlclose(lib);
+  //   return;
+  // }
 
   // 3. 执行更新
   int ret = fix_func(fix_item->new_func,
