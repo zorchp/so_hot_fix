@@ -39,7 +39,7 @@ g++ main.cc app.cc hot_fix.cc -ldl -g -o main && ./main
 然后编译动态库 patch.so:
 
 ```bash
-g++ patch.cc -fpic -shared -o patch.so -g
+g++ patch.cc -fPIC -shared -o patch.so -g
 ```
 
 我的理解是 patch 里面虽然写入了 need_fix_func 函数的指针(首地址), 但是因为是 PIC 代码, 所以实际运行main时need_fix_func 的地址会变, 所以不能简单的直接赋值, 而是要在程序执行时读取:
