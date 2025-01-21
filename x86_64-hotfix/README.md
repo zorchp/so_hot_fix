@@ -55,7 +55,9 @@ int ret = fix_func(fix_item->new_func,
 发送信号的命令
 
 ```bash
-kill -USR1 `ps -ef|grep main|grep -v grep|awk '{print $2}'`
+# kill -USR1 `ps -ef|grep main|grep -v grep|awk '{print $2}'` 
+kill -USR1 $(pgrep main)
+
 ```
 
 > 注意这里先查一下`ps aux| grep main`, 不要有程序跟 main 同名, 否则没法正确发送信号.

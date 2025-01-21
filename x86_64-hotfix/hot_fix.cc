@@ -1,91 +1,86 @@
 #include "hot_fix.h"
-#include "app.h"
 #include <dlfcn.h>
-#include <iostream>
-#include <signal.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <cstdio>
+#include <cstring>
+#include <iostream>
+
 using namespace std;
 
 static int fix_func(const void *new_func, void *old_func) {
-  cout << "begin fix func " << endl;
+    cout << "Applying hotfix..." << endl;
 
-  // 跳转指令
-  char prefix[] = {'\x48', '\xb8'};  // MOV new_func %rax
-  char postfix[] = {'\xff', '\xe0'}; // JMP %rax
+    // 指令跳转模板
+    char prefix[] = {'\x48', '\xb8'};  // MOV $new_func, %rax
+    char postfix[] = {'\xff', '\xe0'}; // JMP %rax
 
-  // 开启代码可写权限
-  size_t page_size = getpagesize();
-  const int inst_len = sizeof(prefix) + sizeof(void *) + sizeof(postfix);
-  char *align_point =
-      (char *)old_func - ((uint64_t)(char *)old_func % page_size);
-  if (0 != mprotect(align_point, (char *)old_func - align_point + inst_len,
-                    PROT_READ | PROT_WRITE | PROT_EXEC)) {
-    cout << "open PROT_WRITE error\n";
-    return -1;
-  }
+    // 获取内存页面大小
+    size_t page_size = getpagesize();
+    size_t inst_len = sizeof(prefix) + sizeof(void *) + sizeof(postfix);
 
-  // 将跳转指令写入原函数开头
-  memcpy(old_func, prefix, sizeof(prefix));
-  memcpy((char *)old_func + sizeof(prefix), &new_func, sizeof(void *));
-  memcpy((char *)old_func + sizeof(prefix) + sizeof(void *), postfix,
-         sizeof(postfix));
+    // 计算页起始地址
+    char *align_point = (char *)old_func - ((uintptr_t)old_func % page_size);
 
-  // 关闭代码可写权限
-  if (0 != mprotect(align_point, (char *)old_func - align_point + inst_len,
-                    PROT_READ | PROT_EXEC)) {
-    cout << "close PROT_WRITE error\n";
-    return -1;
-  }
-  return 0;
+    // 修改权限为可写可执行
+    if (mprotect(align_point, inst_len, PROT_READ | PROT_WRITE | PROT_EXEC) !=
+        0) {
+        perror("mprotect failed");
+        return -1;
+    }
+
+    // 写入跳转指令
+    memcpy(old_func, prefix, sizeof(prefix));
+    memcpy((char *)old_func + sizeof(prefix), &new_func, sizeof(void *));
+    memcpy((char *)old_func + sizeof(prefix) + sizeof(void *), postfix,
+           sizeof(postfix));
+
+    // 恢复权限为只读可执行
+    if (mprotect(align_point, inst_len, PROT_READ | PROT_EXEC) != 0) {
+        perror("mprotect failed");
+        return -1;
+    }
+    cout << "Hotfix applied successfully!" << endl;
+    return 0;
 }
 
 static void do_fix(int signum) {
-  cout << "do fix" << endl;
+    cout << "Signal received for hotfix!" << endl;
 
-  // 1. 调用dlopen加载so库
-  char patch_path[] = "./patch.so";
-  void *lib = dlopen(patch_path, RTLD_NOW);
-  if (NULL == lib) {
-    cout << dlerror() << endl;
-    cout << "dlopen failed , patch " << patch_path << endl;
-    return;
-  }
+    // 加载动态库
+    const char *so_path = "./patch/patch.so";
+    void *lib = dlopen(so_path, RTLD_NOW);
+    if (!lib) {
+        cerr << "dlopen failed: " << dlerror() << endl;
+        return;
+    }
 
-  // 2. 查找函数符号表并且替换
-  FIXTABLE *fix_item = (FIXTABLE *)dlsym(lib, "fix_table");
-  cout //<< " old_func=" << fix_item->old_func
-      << " new_func=" << fix_item->new_func << endl;
-  //   ((int(*)())fix_item->old_func)();
-  //   ((int(*)())fix_item->new_func)();
-  if (NULL == fix_item) {
-    cout << "fix symbol failed" << endl;
-    dlclose(lib);
-    return;
-  }
+    // 查找符号
+    FIXTABLE *fix_table = (FIXTABLE *)dlsym(lib, "fix_table");
+    if (!fix_table) {
+        cerr << "dlsym failed: " << dlerror() << endl;
+        dlclose(lib);
+        return;
+    }
 
-  // ?????
-  // void *result = dlopen(NULL, RTLD_NOW);
-  // if (NULL == result) {
-  //   cout << "result is null" << endl;
-  //   dlclose(lib);
-  //   return;
-  // }
+    // 为什么需要检查 dlopen(NULL, RTLD_NOW)
+    // 它尝试获取当前进程的主程序句柄，通常用于后续调用 dlsym
+    // 查找主程序中的符号。
+    // 常见场景:
+    // 在补丁机制或热更新中，需要动态地查找和修改当前程序中的符号。
+    // 或者，可能需要获取动态库之间共享的全局变量。
+    void *result = dlopen(NULL, RTLD_NOW);
+    printf("result:%p\n", result);
+    if (NULL == result) {
+        cout << "result is null" << endl;
+        dlclose(lib);
+        return;
+    }
 
-  // 3. 执行更新
-  int ret = fix_func(fix_item->new_func,
-                     // fix_item->old_func
-                     (void *)&need_fix_func);
-  cout << "fix result ret " << ret << endl;
-  return;
+    // 更新函数
+    fix_func(fix_table->new_func, fix_table->old_func);
 }
 
 int init_hot_fix_signal() {
-  if (signal(SIGUSR1, do_fix) == SIG_ERR) {
-    return -1;
-  }
-  return 0;
+    return signal(SIGUSR1, do_fix) == SIG_ERR ? -1 : 0;
 }

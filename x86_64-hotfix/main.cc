@@ -1,10 +1,14 @@
+#include <iostream>
 #include "app.h"
 #include "hot_fix.h"
 
 int main() {
-  init_hot_fix_signal();
+    if (init_hot_fix_signal() != 0) {
+        std::cerr << "Failed to initialize hotfix signal." << std::endl;
+        return 1;
+    }
 
-  business_logic();
-
-  return 0;
+    std::cout << "Running main logic. Use `kill -USR1 <pid>` to trigger hotfix." << std::endl;
+    business_logic();
+    return 0;
 }

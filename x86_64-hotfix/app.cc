@@ -1,24 +1,23 @@
 #include "app.h"
-#include <iostream>
 #include <unistd.h>
+#include <iostream>
+
 using namespace std;
 
-// need fix here
+// 需要热更新的函数
 int need_fix_func() {
-  cout << "before fix_func addr : " << (void *)&need_fix_func << endl;
-
-  int times = 10;
-  for (int i = 0; i < times; i++) {
-    cout << "before fix cur times " << i << endl;
-  }
-  return 0;
+    cout << "Original function called at address: " << (void *)&need_fix_func << endl;
+    int times = 5;
+    for (int i = 0; i < times; i++) {
+        cout << "Original logic: iteration " << i << endl;
+    }
+    return 0;
 }
 
 int business_logic() {
-  // do something
-  while (1) {
-    sleep(2);
-    need_fix_func();
-  }
-  return 0;
+    while (1) {
+        sleep(2);         // 模拟业务逻辑
+        need_fix_func();  // 调用需热更新的函数
+    }
+    return 0;
 }
