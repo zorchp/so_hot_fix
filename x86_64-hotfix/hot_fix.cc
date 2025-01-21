@@ -23,9 +23,11 @@ static int fix_func(const void *new_func, void *old_func) {
     char *align_point = (char *)old_func - ((uintptr_t)old_func % page_size);
 
     // 修改权限为可写可执行
-    if (mprotect(align_point, inst_len, PROT_READ | PROT_WRITE | PROT_EXEC) !=
-        0) {
+    if (0 != mprotect(align_point, (char *)old_func - align_point + inst_len,
+                      PROT_READ | PROT_WRITE | PROT_EXEC)) {
         perror("mprotect failed");
+        printf("Align point: %p, Old func: %p, Size: %zu\n", align_point,
+               old_func, (char *)old_func - align_point + inst_len);
         return -1;
     }
 

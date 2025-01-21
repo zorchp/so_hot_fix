@@ -10,8 +10,8 @@ all: main.out
 	./main.out
 
 main: main.cc app.cc hot_fix.cc
-	$(CXX) $(CXXFLAGS) -o main main.cc app.cc hot_fix.cc
+	$(CXX) $(CXXFLAGS) -o main.out main.cc app.cc hot_fix.cc
 
 clean:
-	rm -f main
+	rm -f main.out
 
